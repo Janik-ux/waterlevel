@@ -4,7 +4,8 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
-#include <ArduinoOTA.h>
+#include <NTPClient.h>
+#include <HTTPClient.h>
 
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  5
@@ -12,14 +13,48 @@
 
 RTC_DATA_ATTR int bootCount = 0;
 
-const char* ssid = WIFI_SSID;
-const char* password = PASSWORD;
-
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
+// NTP Client
+WiFiUDP ntpUDP;
+NTPClient ntpClient(ntpUDP);
+
+void send_data(int data, unsigned long time) {
+
+  HTTPClient https;
+
+  Serial.print("[HTTPS] begin...\n");
+  if (https.begin("https://graphite-prod-01-eu-west-0.grafana.net/graphite/metrics")) {  // HTTPS
+    String body = String("[") +
+                  "{\"name\":\"waterlevel-laser\",\"interval\":5,\"value\":"+data+",\"time\":" + time + "}]";
+
+    https.setAuthorization(GRAPHITE_USER, GRAPHITE_API_KEY);
+    https.addHeader("Content-Type", "application/json");
+
+    Serial.print("[HTTPS] POST...\n");
+    // start connection and send HTTP header
+    int httpCode = https.POST(body);
+
+    // httpCode will be negative on error
+    if (httpCode > 0) {
+      // HTTP header has been send and Server response header has been handled
+      Serial.printf("[HTTPS] POST... code: %d\n", httpCode);
+
+      String payload = https.getString();
+      Serial.println(payload);
+    } else {
+      Serial.printf("[HTTPS] POST... failed, error: %s\n", https.errorToString(httpCode).c_str());
+    }
+
+    https.end();
+  } else {
+    Serial.printf("[HTTPS] Unable to connect\n");
+  }
+}
 
 void setup() {
   Serial.begin(115200);
-
+  int dist;
   // blink led to indicate new boot
   pinMode(ONBOARD_LED,OUTPUT);
   digitalWrite(ONBOARD_LED,HIGH);
@@ -36,40 +71,12 @@ void setup() {
   Serial.println("Waterlevel test with VL53L0X");
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("Connection Failed! Rebooting...");
     delay(5000);
     ESP.restart();
   }
-
-  // ArduinoOTA
-  //   .onStart([]() {
-  //     String type;
-  //     if (ArduinoOTA.getCommand() == U_FLASH)
-  //       type = "sketch";
-  //     else // U_SPIFFS
-  //       type = "filesystem";
- 
-  //     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-  //     Serial.println("Start updating " + type);
-  //   })
-  //   .onEnd([]() {
-  //     Serial.println("\nEnd");
-  //   })
-  //   .onProgress([](unsigned int progress, unsigned int total) {
-  //     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  //   })
-  //   .onError([](ota_error_t error) {
-  //     Serial.printf("Error[%u]: ", error);
-  //     if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-  //     else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-  //     else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-  //     else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-  //     else if (error == OTA_END_ERROR) Serial.println("End Failed");
-  //   });
- 
-  // ArduinoOTA.begin();
  
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
@@ -84,15 +91,27 @@ void setup() {
   Serial.print("Reading a measurement... ");
   lox.rangingTest(&measure, false); // pass in 'true' to get debug data printout!
 
+  // write data to var if its good
   if (measure.RangeStatus != 4) {  // phase failures have incorrect data
-    Serial.print("Distance (mm): "); Serial.println(measure.RangeMilliMeter);
+    int dist = measure.RangeMilliMeter;
+    Serial.print("Distance (mm): "); Serial.println(dist);
   } else {
+    int dist = 0;
     Serial.println(" out of range ");
   }
 
+  // update time
+  while (!ntpClient.update()) {
+    yield();
+    ntpClient.forceUpdate();
+  }
+  // Get current timestamp
+  unsigned long ts = ntpClient.getEpochTime();
+
+  send_data(dist, ts);
+
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   Serial.println("Going to sleep now");
-  delay(1000);
   Serial.flush(); 
   esp_deep_sleep_start();
 }
