@@ -11,6 +11,8 @@
 #define TIME_TO_SLEEP  5
 #define ONBOARD_LED  2
 
+void send_data(unsigned int val, unsigned long ts);
+
 RTC_DATA_ATTR int bootCount = 0;
 
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
@@ -19,14 +21,16 @@ Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 WiFiUDP ntpUDP;
 NTPClient ntpClient(ntpUDP);
 
-void send_data(int data, unsigned long time) {
+void send_data(unsigned int val, unsigned long ts) {
 
   HTTPClient https;
 
   Serial.print("[HTTPS] begin...\n");
   if (https.begin("https://graphite-prod-01-eu-west-0.grafana.net/graphite/metrics")) {  // HTTPS
+    Serial.println(val);
     String body = String("[") +
-                  "{\"name\":\"waterlevel-laser\",\"interval\":5,\"value\":"+data+",\"time\":" + time + "}]";
+                  "{\"name\":\"waterlevel-laser\",\"interval\":5,\"value\":" + val + ",\"time\":" + ts + "}]";
+    Serial.println(body);
 
     https.setAuthorization(GRAPHITE_USER, GRAPHITE_API_KEY);
     https.addHeader("Content-Type", "application/json");
@@ -54,7 +58,7 @@ void send_data(int data, unsigned long time) {
 
 void setup() {
   Serial.begin(115200);
-  int dist;
+  unsigned int dist = 2;
   // blink led to indicate new boot
   pinMode(ONBOARD_LED,OUTPUT);
   digitalWrite(ONBOARD_LED,HIGH);
@@ -93,10 +97,10 @@ void setup() {
 
   // write data to var if its good
   if (measure.RangeStatus != 4) {  // phase failures have incorrect data
-    int dist = measure.RangeMilliMeter;
+    dist = measure.RangeMilliMeter;
     Serial.print("Distance (mm): "); Serial.println(dist);
   } else {
-    int dist = 0;
+    dist = 2000;
     Serial.println(" out of range ");
   }
 
