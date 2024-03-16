@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 # settings
 max_t = 36000 # s = 1h
 norm_pegel = 300 # mm
-max_anstieg = 1.5 # mm/s
-max_sleep = 2000
-h_res = 1 # mm Höhenauflösung
+max_anstieg = 1.5 # mm/s Wann Steigt fluss zu schnell, sodaas direkt gemeldet werden muss
+max_sleep = 200 # Maximale schlafenszeit, bis zur nächsten Messung
+h_res = 1 # mm Höhenauflösung (nur soll, wird nicht erreicht, zB wenn Steigung == 0)
 
 # init data vars
 time = np.arange(max_t)
@@ -57,9 +57,9 @@ while t<max_t:
         pegel_dic = {}
 
     
-    sleep_time = (h_res/abs(anstieg)) if (h_res/anstieg) < max_sleep else max_sleep
+    sleep_time = (h_res/abs(anstieg)) if (h_res/abs(anstieg)) < max_sleep else max_sleep
     print(t, sleep_time)
-    sleep_time = int(sleep_time)
+    sleep_time = int(sleep_time) if int(sleep_time) >= 1 else 1
 
     t+=sleep_time
 
@@ -70,5 +70,6 @@ plt.plot(pegel_x, pegel)
 plt.plot(messung_x, messung)
 plt.scatter(senden_x, senden, c="red")
 plt.ylabel("Pegelstand")
+plt.xlabel("Sekunden")
 plt.show()
 
