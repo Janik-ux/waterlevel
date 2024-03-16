@@ -3,7 +3,7 @@
 #define txPin 16
  
 SoftwareSerial jsnSerial(rxPin, txPin);
-int sensor_serial_timeout = 10000; // ms
+int sensor_serial_timeout = 1000; // ms
  
 void setup() {
   Serial.begin(115200);
@@ -14,17 +14,19 @@ void setup() {
   for (i = 0; i < 200; i++) {
     Serial.print(i);
     Serial.print(": ");
-    getDistance();
+    if (!getDistance()) {
+      break;
+    }
   }
 
 
-  ESP.deepSleep(8e6);
+  ESP.deepSleep(0e6);
 }
  
 void loop() {
 }
 
-void getDistance(){
+bool getDistance(){
 
   jsnSerial.begin(9600);
   jsnSerial.write(0x01);
@@ -37,7 +39,7 @@ void getDistance(){
   while (!jsnSerial.available()) {
     if (iter > sensor_serial_timeout/10) {
       Serial.println("Unable to reach Sensor [Serial Timeout occured]");
-      return;
+      return false;
     }
     Serial.print(iter);
     Serial.println("waiting for Sensor Serial coms...");
@@ -64,8 +66,9 @@ void getDistance(){
     } 
   } else {
     Serial.println("Did not get valid Answer from Sensor!");
-    return;
+    return false;
   }
 
   jsnSerial.end();
+  return true;
 }
