@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 max_t = 36000 # s = 1h
 norm_pegel = 300 # mm
 max_anstieg = 1.5 # mm/s Wann Steigt fluss zu schnell, sodaas direkt gemeldet werden muss
-max_sleep = 200 # Maximale schlafenszeit, bis zur nächsten Messung
+max_sleep = 1000 # Maximale schlafenszeit, bis zur nächsten Messung
 h_res = 1 # mm Höhenauflösung (nur soll, wird nicht erreicht, zB wenn Steigung == 0)
 
 # init data vars
