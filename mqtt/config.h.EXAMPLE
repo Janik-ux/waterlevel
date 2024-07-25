@@ -1,0 +1,14 @@
+#define WIFI_SSID     "Wifi"
+#define WIFI_PASSWORD "PWD"
+// #define AP_SSID "waterlevel_AP"
+
+#define GRAPHITE_USER "123456"
+#define GRAPHITE_API_KEY "somebase64encodedstring"
+
+#define SLEEP_INTERVAL 30  // seconds
+#define CONNECT_TIMEOUT 60 // seconds
+#define SENSOR_SERIAL_TIMEOUT 1000 // ms
+
+#define rxPin 17
+#define txPin 16
+#define batVpin 33
