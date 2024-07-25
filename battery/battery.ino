@@ -1,17 +1,20 @@
 #include <SoftwareSerial.h>
 #define rxPin 17
 #define txPin 16
+#define batVpin 33
  
 SoftwareSerial jsnSerial(rxPin, txPin);
 int sensor_serial_timeout = 1000; // ms
  
 void setup() {
   Serial.begin(115200);
-  Serial.println("Beginning Test of aj-sr04m in low power serial mode.");
+  Serial.println("Beginning Test of waterlevel unit.");
 
+  getBattVolt();
+
+  // get waterlevel x times
   int i;
-
-  for (i = 0; i < 20; i++) {
+  for (i = 0; i < 2; i++) {
     Serial.print(i);
     Serial.print(": ");
     if (!getDistance()) {
@@ -19,7 +22,7 @@ void setup() {
     }
   }
 
-
+  // 1us = 1e-6s
   ESP.deepSleep(30e6);
 }
  
@@ -71,4 +74,14 @@ bool getDistance(){
 
   jsnSerial.end();
   return true;
+}
+
+void getBattVolt() {
+  int battVolt = map(analogRead(batVpin), 0.0f, 4095.0f, 0, 3300);
+  float battPerc = map(analogRead(batVpin), 3375.27f, 4095.0f, 0, 100);
+  // 3375.27 := 2.72V at G33 and := 3.4V at Battery, which equals 0%
+  Serial.print("Battery Voltage/Percent: ");
+  Serial.print(battVolt);
+  Serial.print("/");
+  Serial.println(battPerc);
 }
