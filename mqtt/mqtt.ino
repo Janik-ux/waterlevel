@@ -1,12 +1,11 @@
 #include <WiFi.h>
 #include <WiFiManager.h>
-#include <NTPClient.h>
 #include <HTTPClient.h>
 #include <ESPmDNS.h>
-#include <WiFiUdp.h>
 #include <SoftwareSerial.h>
 #include <string>
 #include "config.h"
+#include "time.h"
 
 RTC_DATA_ATTR unsigned int TimeStamps[MAX_DATA];
 RTC_DATA_ATTR unsigned int BattVolts[MAX_DATA];
@@ -16,9 +15,7 @@ RTC_DATA_ATTR unsigned int MetricsCount = 0;
  
 SoftwareSerial jsnSerial(rxPin, txPin);
 
-// NTP Client
-WiFiUDP ntpUDP;
-NTPClient ntpClient(ntpUDP);
+struct tm timeinfo;
 
 HTTPClient httpGraphite;
 
@@ -85,22 +82,20 @@ void setup() {
   Serial.println("Beginning test of waterlevel unit sending data via mqtt.");
 
   initWifi();
-  ntpClient.begin();
 
-  Serial.print("WiFi.status(): ");
-  Serial.println(WiFi.status());
-
-  // update time via NTP if required
-  while (!ntpClient.update()) {
-    yield();
-    ntpClient.forceUpdate();
+  // update time via NTP
+  configTime(0, 0, NTP_SERVER);
+  if (!getLocalTime(&timeinfo, 10000)) {
+    Serial.println("Failed getting time, restarting!");
+    ESP.restart();
   }
+
   Serial.print("Current Time (UTC): ");
-  Serial.println(ntpClient.getFormattedTime());
+  Serial.println(&timeinfo, "%H:%M:%S");
 
   // if there is space for data get it
   if (MetricsCount < MAX_DATA) {
-    TimeStamps[MetricsCount] = ntpClient.getEpochTime();
+    TimeStamps[MetricsCount] = mktime(&timeinfo); // mkgtime() for UTC, if I will change TZ sometimes
     BattVolts[MetricsCount] = getBattVolt();
     WaterLevels[MetricsCount] = getDistance();
     Intervals[MetricsCount] = SLEEP_INTERVAL;
